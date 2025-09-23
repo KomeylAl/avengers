@@ -1,0 +1,286 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  VERIFIED
+  PENDING
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BANNED
+}
+
+enum ScenarioStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+}
+
+enum ActivityType {
+  FOLLOW
+  UNFOLLOW
+  LIKE
+  UNLIKE
+  COMMENT
+  CREATE_SCENARIO
+}
+
+enum TargetType {
+  USER
+  SCENARIO
+  COMMENT
+}
+
+enum NotificationType {
+  FOLLOWED_YOU
+  LIKED_SCENARIO
+  COMMENTED_SCENARIO
+  NEW_SCENARIO_FROM_FOLLOWING
+}
+
+enum TicketStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum SenderType {
+  USER
+  ADMIN
+}
+
+model User {
+  id                  String              @id @default(uuid())
+  email               String              @unique
+  password            String?
+  status              UserStatus          @default(ACTIVE)
+  verification        VerificationStatus  @default(UNVERIFIED)
+  emailVerified       DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  notifications       Notification[] @relation("UserNotifications")
+  actorNotifications  Notification[] @relation("ActorNotifications")
+
+  profile             Profile?
+  activities          Activity[]
+  scenarios           Scenario[]
+  comments            Comment[]
+  likes               Like[]
+  ticket              Ticket[]
+  refreshTokens       RefreshToken[]
+  followers           Follower[] @relation("followers")
+  following           Follower[] @relation("following")
+  reports             Report[]   @relation("reporter")
+}
+
+model Admin {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+
+  tickets   Ticket[]
+}
+
+model Profile {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id])
+
+  name              String?
+  image             String?
+  username          String   @unique
+  bio               String?
+  website           String?
+  emailNotification Boolean @default(false)
+  isPublic          Boolean @default(true)
+  showActivity      Boolean @default(true)
+  notifications     Boolean @default(true)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Activity {
+  id         String       @id @default(uuid())
+  userId     String
+  user       User         @relation(fields: [userId], references: [id])
+
+  type       ActivityType
+  targetId   String
+  targetType TargetType
+
+  createdAt  DateTime     @default(now())
+}
+
+model Notification {
+  id         String       @id @default(uuid())
+  userId     String
+  user       User         @relation("UserNotifications", fields: [userId], references: [id])
+
+  actorId    String
+  actor      User         @relation("ActorNotifications", fields: [actorId], references: [id])
+
+  type       NotificationType
+  targetId   String?
+  targetType TargetType?
+
+  isRead     Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+}
+
+model AuthCode {
+  id        String   @id @default(uuid())
+  code      String
+  email     String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Scenario {
+  id                String         @id @default(uuid())
+  title             String
+  content           String
+  status            ScenarioStatus @default(DRAFT)
+  verifyStatus      VerificationStatus @default(PENDING)
+  unverifiedMessage String?
+  publishedAt       DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  category          Category @relation(fields: [categoryId], references: [id])
+  categoryId        String
+  author            User     @relation(fields: [authorId], references: [id])
+  authorId          String
+  comments          Comment[]
+  likes             Like[]
+  reports           Report[]
+}
+
+model Category {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  scenarios Scenario[]
+}
+
+model Comment {
+  id         String    @id @default(uuid())
+  content    String
+  createdAt  DateTime  @default(now())
+
+  scenario   Scenario  @relation(fields: [scenarioId], references: [id])
+  scenarioId String
+  author     User      @relation(fields: [authorId], references: [id])
+  authorId   String
+  parent     Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  parentId   String?
+  replies    Comment[] @relation("CommentReplies")
+  reports    Report[]
+}
+
+model Like {
+  id         String   @id @default(uuid())
+  createdAt  DateTime @default(now())
+
+  scenario   Scenario @relation(fields: [scenarioId], references: [id])
+  scenarioId String
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+}
+
+model Follower {
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now())
+
+  follower    User     @relation("following", fields: [followerId], references: [id])
+  followerId  String
+  following   User     @relation("followers", fields: [followingId], references: [id])
+  followingId String
+}
+
+model Report {
+  id         String       @id @default(uuid())
+  reason     String
+  status     ReportStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+
+  reporter   User         @relation("reporter", fields: [reporterId], references: [id])
+  reporterId String
+
+  scenario   Scenario?    @relation(fields: [scenarioId], references: [id])
+  scenarioId String?
+
+  comment    Comment?     @relation(fields: [commentId], references: [id])
+  commentId  String?
+}
+
+model Ticket {
+  id          String        @id @default(uuid())
+  title       String
+  status      TicketStatus  @default(OPEN)
+  priority    TicketPriority @default(NORMAL)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // ارتباط‌ها
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+
+  assignedTo  String?       // id ادمین/مدیر
+  admin       Admin?        @relation(fields: [assignedTo], references: [id])
+
+  messages    TicketMessage[]
+}
+
+model TicketMessage {
+  id          String     @id @default(uuid())
+  content     String
+  createdAt   DateTime   @default(now())
+
+  ticketId    String
+  ticket      Ticket     @relation(fields: [ticketId], references: [id])
+
+  senderType  SenderType
+  senderId    String
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  tokenHash  String   // store hashed refresh token for safety
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revoked    Boolean  @default(false)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+}
