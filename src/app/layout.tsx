@@ -34,7 +34,7 @@ export default function RootLayout({
         <ReactQueryProvider>
           <Header />
           <Toaster />
-          <div className="">{children}</div>
+          <div className="px-32">{children}</div>
           <BottomNav />
         </ReactQueryProvider>
       </body>

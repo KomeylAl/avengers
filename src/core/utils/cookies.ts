@@ -3,7 +3,7 @@ import { serialize, parse } from "cookie";
 export function createAccessCookie(token: string, maxAgeSeconds: number) {
   return serialize("token", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    // secure: process.env.NODE_ENV === "production",
     path: "/",
     sameSite: "lax",
     maxAge: maxAgeSeconds,
@@ -13,7 +13,7 @@ export function createAccessCookie(token: string, maxAgeSeconds: number) {
 export function createRefreshCookie(token: string, maxAgeSeconds: number) {
   return serialize("refreshToken", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    // secure: process.env.NODE_ENV === "production",
     path: "/",
     sameSite: "lax",
     maxAge: maxAgeSeconds,

@@ -31,7 +31,6 @@ export async function middleware(req: NextRequest) {
           });
 
           if (response.ok) {
-            console.log("ok")
             const { accessToken } =
               await response.json();
 
